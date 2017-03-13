@@ -3,6 +3,7 @@
 namespace SahusoftCom\EloquentImageMutator\Dist;
 
 use Exception;
+use Storage, Config, Log;
 
 class ImageService
 {
@@ -11,7 +12,7 @@ class ImageService
 
 	public static function getImagineObject() 
 	{
-	    $library = \Config::get('image.library', 'gd');
+	    $library = Config::get('image.library', 'gd');
 
 	    if ($library == 'imagick')
 	        $imagine = new \Imagine\Imagick\Imagine();
@@ -32,23 +33,25 @@ class ImageService
 
 	public static function copyImage($key, $value)
 	{
-		$fileObject = new \SplFileInfo(public_path().$value->original->url);		
+		$fileObject = new \SplFileInfo(Storage::get($value->original->url));
 		$destination = ImageService::getANewFileName($fileObject->getExtension());
 		$destinationDirectory = ImageService::getUploadStoragePath().'/'.dirname($destination);
-		if(!\File::isDirectory($destinationDirectory))
-		    \File::makeDirectory($destinationDirectory, 0777, true);
+        if(!Storage::exists($destinationDirectory)){
+            Storage::makeDirectory($destinationDirectory);
+        }
 
-		copy(public_path().$value->original->url, $destinationDirectory.'/'.basename($destination));
+        Storage::put($destinationDirectory.'/'.basename($destination),file_get_contents(Storage::get($value->original->url)),'public');
+
 		$urn = ImageService::makeFromFile($destination, basename($destination));
 		$allTheSizes = ImageService::getAllTheSizes($urn);
 		$arrayForDB = [];
 
 		foreach ($allTheSizes as $keyTwo => $value) {
-		    $arrayForDB[$keyTwo]['url'] = !empty($value['urn']) ? '/'.\Config::get('image.upload_dir').'/'.$value['urn'] : null;
+		    $arrayForDB[$keyTwo]['url'] = !empty($value['urn']) ? '/'.Config::get('image.upload_dir').'/'.$value['urn'] : null;
 		    $arrayForDB[$keyTwo]['height'] = !empty($value['height']) ? $value['height'] : null;
 		    $arrayForDB[$keyTwo]['width'] = !empty($value['width']) ? $value['width'] : null;
 		}
-		$arrayForDB['original']['url'] = !empty($urn) ? '/'.\Config::get('image.upload_dir').'/'.$urn : null;
+		$arrayForDB['original']['url'] = !empty($urn) ? '/'.Config::get('image.upload_dir').'/'.$urn : null;
 
 		$imageObj = new ImageFieldLocal($arrayForDB);
 		return $imageObj;
@@ -64,25 +67,19 @@ class ImageService
 	{
 	    $destination = ImageService::getANewFileName($value->getClientOriginalExtension());
 
-//        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-//        $file_mime = finfo_file($finfo, $value);
-//        finfo_close($finfo);
-
-
-        $file = \Storage::putFileAs(ImageService::getUploadStoragePath().'/'.dirname($destination),$value, basename($destination),'public');
+        $file = Storage::putFileAs(ImageService::getUploadStoragePath().'/'.dirname($destination),$value, basename($destination),'public');
 
 	    $urn = ImageService::makeFromFile($destination, $value->getClientOriginalName());
 
 	    $allTheSizes = ImageService::getAllTheSizes($urn);
 	    $arrayForDB = [];
 
-
 	    foreach ($allTheSizes as $keyTwo => $value) {
-	        $arrayForDB[$keyTwo]['url'] = !empty($value['urn']) ? '/'.\Config::get('image.upload_dir').'/'.$value['urn'] : null;
+	        $arrayForDB[$keyTwo]['url'] = !empty($value['urn']) ? Config::get('image.upload_dir').'/'.$value['urn'] : null;
 	        $arrayForDB[$keyTwo]['height'] = !empty($value['height']) ? $value['height'] : null;
 	        $arrayForDB[$keyTwo]['width'] = !empty($value['width']) ? $value['width'] : null;
 	    }
-	    $arrayForDB['original']['url'] = !empty($urn) ? '/'.\Config::get('image.upload_dir').'/'.$urn : null;
+	    $arrayForDB['original']['url'] = !empty($urn) ? Config::get('image.upload_dir').'/'.$urn : null;
 
 	    $imageObj = new ImageFieldLocal($arrayForDB);
 	    return $imageObj;
@@ -94,20 +91,23 @@ class ImageService
 
 		$destination = ImageService::getANewFileName($fileObject->getExtension());
 		$destinationDirectory = ImageService::getUploadStoragePath().'/'.dirname($destination);
-		if(!\File::isDirectory($destinationDirectory))
-		    \File::makeDirectory($destinationDirectory, 0777, true);
+		if(!Storage::exists($destinationDirectory)){
+            Storage::makeDirectory($destinationDirectory);
+        }
 
-		file_put_contents($destinationDirectory.'/'.basename($destination), file_get_contents($value));
+        Storage::put($destinationDirectory.'/'.basename($destination),file_get_contents($value),'public');
+
+//		file_put_contents($destinationDirectory.'/'.basename($destination), file_get_contents($value));
 		$urn = ImageService::makeFromFile($destination, basename($destination));
 		$allTheSizes = ImageService::getAllTheSizes($urn);
 		$arrayForDB = [];
 
 		foreach ($allTheSizes as $keyTwo => $value) {
-		    $arrayForDB[$keyTwo]['url'] = !empty($value['urn']) ? '/'.\Config::get('image.upload_dir').'/'.$value['urn'] : null;
+		    $arrayForDB[$keyTwo]['url'] = !empty($value['urn']) ? Config::get('image.upload_dir').'/'.$value['urn'] : null;
 		    $arrayForDB[$keyTwo]['height'] = !empty($value['height']) ? $value['height'] : null;
 		    $arrayForDB[$keyTwo]['width'] = !empty($value['width']) ? $value['width'] : null;
 		}
-		$arrayForDB['original']['url'] = !empty($urn) ? '/'.\Config::get('image.upload_dir').'/'.$urn : null;
+		$arrayForDB['original']['url'] = !empty($urn) ? Config::get('image.upload_dir').'/'.$urn : null;
 
 		$imageObj = new ImageFieldLocal($arrayForDB);
 		return $imageObj;
@@ -120,7 +120,7 @@ class ImageService
 
 	public static function getUploadStoragePath()
 	{
-	    return \Config::get('image.assets_upload_path');
+	    return Config::get('image.assets_upload_path');
 	}
 
 	public static function getANewFileName($ext)
@@ -144,7 +144,7 @@ class ImageService
 
 	public static function createDimensions($url, $dimensions = array())
 	{
-	    $defaultDimensions = \Config::get('image.dimensions');
+	    $defaultDimensions = Config::get('image.dimensions');
 
 	    if (is_array($defaultDimensions)) $dimensions = array_merge($defaultDimensions, $dimensions);
 
@@ -153,7 +153,7 @@ class ImageService
 	        $width   = (int) $dimension[0];
 	        $height  = isset($dimension[1]) ?  (int) $dimension[1] : $width;
 	        $crop    = isset($dimension[2]) ? (bool) $dimension[2] : false;
-	        $quality = isset($dimension[3]) ?  (int) $dimension[3] : \Config::get('image.quality');
+	        $quality = isset($dimension[3]) ?  (int) $dimension[3] : Config::get('image.quality');
 
 	        $dest = dirname($url).'/'.$width.'x'.$height.($crop?'_crop':'').'/'.basename($url);
 
@@ -166,7 +166,7 @@ class ImageService
 	{
 	    $dimensions = array();
 
-	    $defaultDimensions = \Config::get('image.dimensions');
+	    $defaultDimensions = Config::get('image.dimensions');
 	 
 	    if (is_array($defaultDimensions)){
             $dimensions = array_merge($defaultDimensions, $dimensions);
@@ -179,7 +179,7 @@ class ImageService
 	        $width   = (int) $dimension[0];
 	        $height  = isset($dimension[1]) ?  (int) $dimension[1] : $width;
 	        $crop    = isset($dimension[2]) ? (bool) $dimension[2] : false;
-	        $quality = isset($dimension[3]) ?  (int) $dimension[3] : \Config::get('image.quality');
+	        $quality = isset($dimension[3]) ?  (int) $dimension[3] : Config::get('image.quality');
 
 	        $info = pathinfo($url);
 
@@ -237,7 +237,7 @@ class ImageService
 
 	public static function imageCrop($source, $destination, $x=0, $y=0, $width=1, $height=1, $quality=90)
 	{
-        if(!\Storage::exists($source)) {
+        if(!Storage::exists($source)) {
             throw new Exception("[IMAGE SERVICE] Source file does not exist");
         }
 
@@ -261,15 +261,15 @@ class ImageService
 
 	    try {
 
-	        $rs = $imagine->load(\Storage::get($source))
+	        $rs = $imagine->load(Storage::get($source))
 	                ->crop($point,$box)
-                ->get(\Config::get('image.thumb_extension','png'),array('quality' => $quality));
+                ->get(Config::get('image.thumb_extension','jpg'),array('quality' => $quality));
 
-            \Storage::put($destination,$rs,'public');
+            Storage::put($destination,$rs,'public');
 
 	    } catch (\Exception $e) {
 
-	        \Log::error('[IMAGE SERVICE] Image crop Failed to crop image  [' . $e->getMessage() . ']');
+	        Log::error('[IMAGE SERVICE] Image crop Failed to crop image  [' . $e->getMessage() . ']');
 
 	    }
 
@@ -278,14 +278,15 @@ class ImageService
 
 	public static function resize($source, $destination, $width = 100, $height = null, $crop = false, $quality = 90)
 	{
-	    if(!\Storage::exists($source)){
+	    if(!Storage::exists($source)){
             throw new Exception("[IMAGE SERVICE] Source file does not exist");
         }
 
 	    $destinationFolder = dirname($destination);
 
-	    if(!\Storage::exists($destinationFolder))
-	        \Storage::makeDirectory($destinationFolder);
+	    if(!Storage::exists($destinationFolder)){
+            Storage::makeDirectory($destinationFolder);
+        }
 
 	    // Set the size
 	    $size = new \Imagine\Image\Box($width, $height);
@@ -299,15 +300,15 @@ class ImageService
 
 	    try {
 
-	        $rs = $imagine->load(\Storage::get($source))
+	        $rs = $imagine->load(Storage::get($source))
 	            ->thumbnail($size, $mode)
-                ->get(\Config::get('image.thumb_extension','png'),array('quality' => $quality));
+                ->get(Config::get('image.thumb_extension','jpg'),array('quality' => $quality));
 
-            \Storage::put($destination,$rs,'public');
+            Storage::put($destination,$rs,'public');
 
-	    } catch (\Exception $e) {
+	    } catch (Exception $e) {
 
-	        \Log::error('[IMAGE SERVICE] Image resize Failed to crop image  [' . $e->getMessage() . ']');
+	        Log::error('[IMAGE SERVICE] Image resize Failed to crop image  [' . $e->getMessage() . ']');
 
 	    }
 
@@ -316,6 +317,6 @@ class ImageService
 
 	public static function delete($fullPath)
 	{
-		return unlink($fullPath);
+		return Storage::delete($fullPath);
 	}
 }

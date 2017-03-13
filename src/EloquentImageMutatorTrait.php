@@ -106,6 +106,7 @@ trait EloquentImageMutatorTrait
     public function setImageAttributeForUploadedFileObject($key, $value)
     {
         $imageFieldObject = ImageService::uploadImage($key, $value);
+
         $this->attributes[$key] = $imageFieldObject->toJson();
     }
 
