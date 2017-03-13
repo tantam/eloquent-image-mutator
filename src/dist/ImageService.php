@@ -2,7 +2,7 @@
 
 namespace SahusoftCom\EloquentImageMutator\Dist;
 
-use SahusoftCom\EloquentImageMutator\Dist\ImageFieldLocal;
+use Exception;
 
 class ImageService
 {
@@ -55,16 +55,27 @@ class ImageService
 	
 	}
 
+    /**
+     * @param $key
+     * @param \Illuminate\Http\UploadedFile | \Symfony\Component\HttpFoundation\File\UploadedFile $value
+     * @return \SahusoftCom\EloquentImageMutator\Dist\ImageFieldLocal
+     */
 	public static function uploadImage($key, $value)
 	{
 	    $destination = ImageService::getANewFileName($value->getClientOriginalExtension());
 
-	    $value->move(ImageService::getUploadStoragePath().'/'.dirname($destination), basename($destination));
+//        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+//        $file_mime = finfo_file($finfo, $value);
+//        finfo_close($finfo);
+
+
+        $file = \Storage::putFileAs(ImageService::getUploadStoragePath().'/'.dirname($destination),$value, basename($destination),'public');
 
 	    $urn = ImageService::makeFromFile($destination, $value->getClientOriginalName());
 
 	    $allTheSizes = ImageService::getAllTheSizes($urn);
 	    $arrayForDB = [];
+
 
 	    foreach ($allTheSizes as $keyTwo => $value) {
 	        $arrayForDB[$keyTwo]['url'] = !empty($value['urn']) ? '/'.\Config::get('image.upload_dir').'/'.$value['urn'] : null;
@@ -104,12 +115,12 @@ class ImageService
 
 	public static function getANewFolder()
 	{
-	    return  'user/'.date('Y/m/d/i/s');
+	    return  'user/'.date('Y/m/d');
 	}
 
 	public static function getUploadStoragePath()
 	{
-	    return base_path().'/'.\Config::get('image.assets_upload_path');
+	    return \Config::get('image.assets_upload_path');
 	}
 
 	public static function getANewFileName($ext)
@@ -119,8 +130,8 @@ class ImageService
 
 	public static function makeFromFile($urn, $original_name = '', $title='')
 	{
-	    if(!$original_name)
-	        $original_name = basename($urn);
+//	    if(!$original_name)
+//	        $original_name = basename($urn);
 
 	    $absFile = self::getUploadStoragePath().'/'.$urn;
 
@@ -157,8 +168,9 @@ class ImageService
 
 	    $defaultDimensions = \Config::get('image.dimensions');
 	 
-	    if (is_array($defaultDimensions))
-	        $dimensions = array_merge($defaultDimensions, $dimensions);
+	    if (is_array($defaultDimensions)){
+            $dimensions = array_merge($defaultDimensions, $dimensions);
+        }
 
 	    $ret = array();
 
@@ -225,8 +237,9 @@ class ImageService
 
 	public static function imageCrop($source, $destination, $x=0, $y=0, $width=1, $height=1, $quality=90)
 	{
-	    if(!\File::exists($source))
-	        throw new Exception("[IMAGE SERVICE] Source file does not exist");
+        if(!\Storage::exists($source)) {
+            throw new Exception("[IMAGE SERVICE] Source file does not exist");
+        }
 
 	    $destinationFolder = dirname($destination);
 
@@ -248,9 +261,11 @@ class ImageService
 
 	    try {
 
-	        $imagine->open($source)
+	        $rs = $imagine->load(\Storage::get($source))
 	                ->crop($point,$box)
-	                ->save($destination, array('quality' => $quality)); 
+                ->get(\Config::get('image.thumb_extension','png'),array('quality' => $quality));
+
+            \Storage::put($destination,$rs,'public');
 
 	    } catch (\Exception $e) {
 
@@ -263,13 +278,14 @@ class ImageService
 
 	public static function resize($source, $destination, $width = 100, $height = null, $crop = false, $quality = 90)
 	{
-	    if(!\File::exists($source))
-	        throw new Exception("[IMAGE SERVICE] Source file does not exist");
+	    if(!\Storage::exists($source)){
+            throw new Exception("[IMAGE SERVICE] Source file does not exist");
+        }
 
 	    $destinationFolder = dirname($destination);
 
-	    if(!\File::isDirectory($destinationFolder))
-	        \File::makeDirectory($destinationFolder, 0777, true);
+	    if(!\Storage::exists($destinationFolder))
+	        \Storage::makeDirectory($destinationFolder);
 
 	    // Set the size
 	    $size = new \Imagine\Image\Box($width, $height);
@@ -277,15 +293,18 @@ class ImageService
 	    // Now the mode
 	    $mode = $crop ? \Imagine\Image\ImageInterface::THUMBNAIL_OUTBOUND : \Imagine\Image\ImageInterface::THUMBNAIL_INSET;
 	    
-	    if(empty($imagine))
-	        $imagine = self::getImagineObject();
+	    if(empty($imagine)){
+            $imagine = self::getImagineObject();
+        }
 
 	    try {
 
-	        $imagine->open($source)
+	        $rs = $imagine->load(\Storage::get($source))
 	            ->thumbnail($size, $mode)
-	            ->save($destination, array('quality' => $quality));
-	
+                ->get(\Config::get('image.thumb_extension','png'),array('quality' => $quality));
+
+            \Storage::put($destination,$rs,'public');
+
 	    } catch (\Exception $e) {
 
 	        \Log::error('[IMAGE SERVICE] Image resize Failed to crop image  [' . $e->getMessage() . ']');
