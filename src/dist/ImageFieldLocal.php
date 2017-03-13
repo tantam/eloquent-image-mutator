@@ -22,7 +22,7 @@ class ImageFieldLocal implements ImageFieldInerface
 		
 		foreach ($dimensions as $key => $value) {
 			
-			if($key == 'orignal'){
+			if($key == 'original'){
 					
 				$this->$key = new ImageFile();
 				$this->$key->url = !empty($value['url']) ? $value['url'] : null;
