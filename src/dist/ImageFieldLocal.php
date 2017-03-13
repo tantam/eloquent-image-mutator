@@ -15,7 +15,6 @@ class ImageFieldLocal implements ImageFieldInerface
 		    foreach ($dimensions as $key => $value) {
 		    	$this->{$value[4]} = new ImageFile();
 		    }
-		    $this->orignal = new ImageFile();
 		    $this->original = new ImageFile();
 		    return $this;
 		}
