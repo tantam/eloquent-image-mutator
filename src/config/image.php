@@ -2,14 +2,14 @@
 
 return array(
     'library'     => 'gd',
-    'upload_dir'  => 'uploads',
-    'assets_upload_path' => 'storage/app/uploads',
+    'upload_dir'  => 'public/uploads',
+    'assets_upload_path' => 'public/uploads',
     'quality'     => 85,
     'thumb_extension'=>'jpg',
     'dimensions'  => [
-        ['50','50',true, 85, 'thumbnail'],
-        ['240','180',false, 85, 'small'],
+        // width, height, crop?, quality, name
+        ['640','480',true, 85, 'thumb'],
         ['640','480',false, 85, 'medium'],
-        ['800','600',false, 85, 'large']
+
     ]
 );
