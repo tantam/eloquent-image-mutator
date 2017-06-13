@@ -5,11 +5,17 @@ return array(
     'upload_dir'  => 'public/uploads',
     'assets_upload_path' => 'public/uploads',
     'quality'     => 85,
-    'thumb_extension'=>'jpg',
+    'default'     => [
+        'url'     => 'http://placehold.it/150x150',
+        'width'   => 150,
+        'height'  => 150
+    ],
     'dimensions'  => [
-        // width, height, crop?, quality, name
-        ['640','480',true, 85, 'thumb'],
-        ['640','480',false, 85, 'medium'],
-
+        ['50',  '50',   true,   85, 'thumbnail'],
+        ['160', '120',  false,  85, 'xsmall'],
+        ['240', '180',  false,  85, 'small'],
+        ['300', '300',  true,   85, 'profile'],
+        ['640', '480',  false,  85, 'medium'],
+        ['800', '600',  false,  85, 'large']
     ]
 );
